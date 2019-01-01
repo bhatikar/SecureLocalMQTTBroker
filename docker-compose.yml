@@ -1,0 +1,38 @@
+version: "2"
+services:
+  broker:
+    image: eclipse-mosquitto
+    ports:
+     - 8883
+    volumes:
+     - ./mosquitto:/mosquitto
+    networks:
+     default:
+      aliases:
+       - mqttserver
+  subscriber:
+   build:
+    context: ./Machine1
+    dockerfile: Dockerfile
+   image: mysubscriber
+   volumes:
+    - ./Machine1/certs1:/certs
+   networks:
+    default:
+     aliases:
+      - mqttclient1
+  publisher:
+   build:
+    context: ./Machine2
+    dockerfile: Dockerfile
+   image: mypublisher
+   volumes:
+    - ./Machine2/certs2:/certs
+   networks:
+    default:
+     aliases:
+      - mqttclient2
+ #networks:
+#    default:
+#        external:
+#            name: mynet
