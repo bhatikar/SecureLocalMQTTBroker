@@ -1,0 +1,56 @@
+#!/bin/bash
+# This script generates the keys and certificates used for testing mosquitto broker security feature.
+# None of the keys are encrypted, so do not just use this script to generate
+# files for your own use.
+#set -x
+OPTS=`getopt -o hc: --long help,client: -n 'parse-options' -- "$@"`
+
+if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
+
+#echo "$OPTS"
+eval set -- "$OPTS"
+
+HELP=false
+
+while true; do
+  case "$1" in
+    -h | --help )    HELP=true; shift ;;
+    -c | --client ) client_arg=$2; shift ; shift ;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+help()
+{
+
+echo "./genclientcert -c <mqtt client hostname>"
+echo "e.g ./genclientcert -c mqttclient"
+echo "The certificates are generated in the results folder under respective hostname folders"
+}
+
+if [ $HELP = true ]; then
+	help
+	exit
+fi
+
+if [ -z "${client_arg// }" ] ; then
+	echo "empty client hostname flag"
+	exit
+fi
+
+mkdir -p results/${client_arg}
+
+BASESUBJ="/C=GB/ST=Derbyshire/L=Derby/O=Mosquitto Project/OU=Testing"
+SBASESUBJ="/C=GB/ST=Nottinghamshire/L=Nottingham/O=Server/OU=Production"
+
+# Valid client key and certificate.
+openssl genrsa -out ${client_arg}.key 1024
+openssl req -new -key ${client_arg}.key -out ${client_arg}.csr -config openssl.cnf -subj "${SBASESUBJ}/CN=${client_arg}/"
+yes | openssl ca -config openssl.cnf -name CA_signing -out ${client_arg}.crt -infiles ${client_arg}.csr
+
+cat ${client_arg}.crt ${client_arg}.key all-ca.crt > ${client_arg}.pem
+
+cp all-ca.crt ${client_arg}.key ${client_arg}.crt results/${client_arg}
+
+#rm -rf rootCA signingCA

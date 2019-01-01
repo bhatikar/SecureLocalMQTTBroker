@@ -1,0 +1,71 @@
+#!/bin/bash
+# This script generates the keys and certificates used for testing mosquitto broker security feature.
+# None of the keys are encrypted, so do not just use this script to generate
+# files for your own use.
+#set -x
+
+OPTS=`getopt -o hc --long clean,help -n 'parse-options' -- "$@"`
+
+if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
+
+#echo "$OPTS"
+eval set -- "$OPTS"
+
+HELP=false
+CLEAN=false
+
+while true; do
+  case "$1" in
+    -h | --help )    HELP=true; shift ;;
+    -c | --clean ) CLEAN=true; shift ;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+help()
+{
+
+echo "./genrootca --clean to clean up files"
+echo "e.g ./genrootca to generate root certificate authority"
+echo "The certificates are generated in the results folder under rootCA folder"
+}
+
+if [ $HELP = true ]; then
+	help
+	exit
+fi
+
+if [ -d results/rootCA -o $CLEAN = true ]; 
+then
+	rm -rf *.crt *.csr *.key rootCA/ signingCA/ *.pem
+	rm -rf results/rootCA
+	if [ $CLEAN = true ]; then
+		rm -rf results
+	      	exit;
+        fi	       
+fi
+
+for a in root signing; do
+	rm -rf ${a}CA/
+	mkdir -p ${a}CA/newcerts
+	touch ${a}CA/index.txt
+	echo 01 > ${a}CA/serial
+	echo 01 > ${a}CA/crlnumber
+done
+
+mkdir -p results/rootCA
+
+BASESUBJ="/C=GB/ST=Derbyshire/L=Derby/O=Mosquitto Project/OU=Testing"
+SBASESUBJ="/C=GB/ST=Nottinghamshire/L=Nottingham/O=Server/OU=Production"
+
+# The root CA
+openssl genrsa -out test-root-ca.key 1024
+openssl req -new -x509 -days 3650 -key test-root-ca.key -out test-root-ca.crt -config openssl.cnf -subj "${BASESUBJ}/CN=Root CA/"
+# An intermediate CA, signed by the root CA, used to sign server/client csrs.
+yes | openssl genrsa -out test-signing-ca.key 1024
+openssl req -out test-signing-ca.csr -key test-signing-ca.key -new -config openssl.cnf -subj "${BASESUBJ}/CN=Signing CA/"
+yes | openssl ca -config openssl.cnf -name CA_root -extensions v3_ca -out test-signing-ca.crt -infiles test-signing-ca.csr
+cat test-signing-ca.crt test-root-ca.crt > all-ca.crt
+
+cp all-ca.crt  results/rootCA
