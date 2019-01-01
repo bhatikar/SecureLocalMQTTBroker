@@ -1,8 +1,8 @@
 #!/bin/bash
-# This file generates the keys and certificates used for testing mosquitto.
+# This script generates the keys and certificates used for testing mosquitto broker security feature.
 # None of the keys are encrypted, so do not just use this script to generate
 # files for your own use.
-set -x
+#set -x
 OPTS=`getopt -o hc:s:r:S: --long server:,help,client:,rootca:,enable-server: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
@@ -28,8 +28,10 @@ done
 help()
 {
 
-echo " ./gencert.sh -c <client hostname/ip> -s <mqttbroker hostname/ip> -S <enable server cert generation> --rootca <enable server cert generation>"
-echo " The certificates are generated in the results folder"
+echo "./gencert.sh -c <mqtt client hostname> -s <mqttbroker hostname> -S <enable server cert generation> --rootca <enable root ca cert generation>"
+echo "e.g for the first time you need to run ./gencert.sh -c mqttclient1 -s mqttbroker -S 1 --rootca 1"
+echo "For the subsequent client certificates for same broker you need to run ./gencert.sh -c mqttclient1 -s mqttbroker -S 0 --rootca 0"
+echo "The certificates are generated in the results folder under respective hostname folders"
 }
 
 if [ $HELP = true ]; then
@@ -38,7 +40,7 @@ if [ $HELP = true ]; then
 fi
 
 if [ -z "${server_arg// }" ] || [ -z "${client_arg// }" ]  || [ -z "${rootca_arg// }" ] || [ -z "${serverca_arg// }" ]; then
-	echo "empty server or client or rootca"
+	echo "empty server or client or rootca or server certificate flag"
 	exit
 fi
 
